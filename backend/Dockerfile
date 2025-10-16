@@ -2,8 +2,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Copia apenas o package.json para aproveitar o cache do Docker
-COPY package.json ./
+# Copia apenas o package.json da pasta 'api' para o diretório de trabalho
+COPY api/package.json ./
 
 # Instala as dependências de produção
 RUN npm install --omit=dev
@@ -15,8 +15,8 @@ WORKDIR /app
 # Copia as dependências instaladas do estágio anterior
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copia o código da aplicação
-COPY . .
+# Copia todo o código da pasta 'api' para o diretório de trabalho
+COPY api/ .
 
 # Expõe a porta que a aplicação usa
 EXPOSE 3000

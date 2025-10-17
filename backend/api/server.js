@@ -15,6 +15,8 @@ app.use(cors());
 app.use(express.json());
 
 // --- CONFIGURAÇÃO DO SWAGGER ---
+// Define a URL do servidor dinamicamente com base no ambiente
+const serverUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
 const swaggerOptions = {
     definition: {
         openapi: '3.0.0',
@@ -23,7 +25,7 @@ const swaggerOptions = {
             version: '3.0.0',
             description: 'API do banco digital com novas regras de negócio e tabelas.',
         },
-        servers: [{ url: `http://localhost:${PORT}` }],
+        servers: [{ url: serverUrl, description: process.env.NODE_ENV === 'production' ? 'Servidor de Produção' : 'Servidor Local' }],
         components: {
             securitySchemes: {
                 bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },

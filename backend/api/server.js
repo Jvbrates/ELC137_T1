@@ -257,55 +257,71 @@ app.get('/clientes/:documento', authenticateToken, async (req, res) => {
  *                 type: string
  *               sobrenome_razao_social:
  *                 type: string
+ *               senha:
+ *                 type: string
+ *                 format: password
+ *                 description: "Opcional. Forneça apenas se desejar alterar a senha."
+ *               foto_identidade_url:
+ *                 type: string
+ *                 format: uri
+ *                 description: "Opcional. URL para a nova foto."
  *     responses:
  *       '200':
  *         description: Cliente atualizado com sucesso
  */
 app.put('/clientes/:documento', authenticateToken, async (req, res) => {
-  const { documento } = req.params;
-  const normalizedDoc = normalizeDocument(documento);
-  const { user } = req;
+    const { documento } = req.params;
+    const normalizedDoc = normalizeDocument(documento);
+    const { user } = req;
 
-  if (user.documento !== normalizedDoc && user.role !== 'gerente') {
-    return res.status(403).json({ error: 'Acesso não autorizado.' });
-  }
+    if (user.documento !== normalizedDoc && user.role !== 'gerente') {
+        return res.status(403).json({ error: 'Acesso não autorizado.' });
+    }
 
-  const { primeiro_nome, sobrenome_razao_social } = req.body;
-  const fields = [];
-  const values = [];
-  let queryIndex = 1;
+    const { primeiro_nome, sobrenome_razao_social, senha, foto_identidade_url } = req.body;
+    const fields = [];
+    const values = [];
+    let queryIndex = 1;
 
-  if (primeiro_nome) {
-    fields.push(`primeiro_nome = $${queryIndex++}`);
-    values.push(primeiro_nome);
-  }
-  if (sobrenome_razao_social) {
-    fields.push(`sobrenome_razao_social = $${queryIndex++}`);
-    values.push(sobrenome_razao_social);
-  }
+    if (primeiro_nome) {
+        fields.push(`primeiro_nome = $${queryIndex++}`);
+        values.push(primeiro_nome);
+    }
+    if (sobrenome_razao_social) {
+        fields.push(`sobrenome_razao_social = $${queryIndex++}`);
+        values.push(sobrenome_razao_social);
+    }
+    if (senha) {
+        fields.push(`senha_hash = crypt($${queryIndex++}, gen_salt('bf'))`);
+        values.push(senha);
+    }
+    if (foto_identidade_url) {
+        fields.push(`foto_identidade_url = $${queryIndex++}`);
+        values.push(foto_identidade_url);
+    }
 
-  if (fields.length === 0) {
-    return res.status(400).json({ error: 'Nenhum campo para atualizar foi fornecido.' });
-  }
+    if (fields.length === 0) {
+        return res.status(400).json({ error: 'Nenhum campo para atualizar foi fornecido.' });
+    }
 
-  values.push(normalizedDoc);
-  const updateQuery = `
+    values.push(normalizedDoc);
+    const updateQuery = `
         UPDATE cliente 
         SET ${fields.join(', ')} 
         WHERE documento = $${queryIndex} AND deleted_at IS NULL
-        RETURNING documento, primeiro_nome, sobrenome_razao_social;
+        RETURNING documento, primeiro_nome, sobrenome_razao_social, foto_identidade_url;
     `;
 
-  try {
-    const result = await pool.query(updateQuery, values);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Cliente não encontrado ou está inativo.' });
+    try {
+        const result = await pool.query(updateQuery, values);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Cliente não encontrado ou está inativo.' });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Erro ao atualizar cliente:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
     }
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Erro ao atualizar cliente:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-  }
 });
 
 

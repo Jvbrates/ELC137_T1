@@ -140,7 +140,7 @@ BEGIN
     
     -- Inserir um gerente
     INSERT INTO cliente (documento, primeiro_nome, sobrenome_razao_social, senha_hash, role)
-    VALUES ('111.111.111-11', 'Gerente', 'Principal', crypt('senha_gerente', gen_salt('bf')), 'gerente');
+    VALUES ('00000000001', 'Gerente', 'Principal', crypt('senha', gen_salt('bf')), 'gerente');
 
     -- Gerar 10 Clientes com contas, cartões e empréstimos
     RAISE NOTICE 'Gerando 10 clientes e seus dados...';
@@ -150,7 +150,7 @@ BEGIN
         v_cliente_documento := LPAD((11111111110 + i)::TEXT, 11, '0'); -- CPF Fictício
 
         INSERT INTO cliente (documento, primeiro_nome, sobrenome_razao_social, senha_hash)
-        VALUES (v_cliente_documento, v_primeiro_nome, v_sobrenome, crypt('senha' || i, gen_salt('bf')))
+        VALUES (v_cliente_documento, v_primeiro_nome, v_sobrenome, crypt('senha', gen_salt('bf')))
         RETURNING documento INTO v_cliente_documento;
 
         INSERT INTO conta (cliente_documento, numero_conta, agencia, saldo)

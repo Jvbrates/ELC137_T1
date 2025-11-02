@@ -1,4 +1,14 @@
 services:
+  haproxy:
+    image: haproxy:2.9
+    container_name: haproxy
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
   db:
     image: postgres:15
     container_name: banco_db
@@ -8,7 +18,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: bank
     ports:
-      - "5432:5432" # 🔹 permite acesso via DBeaver (localhost:5432)
+      - "5432:5432"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - pgdata:/var/lib/postgresql/data
@@ -20,9 +30,11 @@ services:
 
   api:
     image: node:20-alpine
+    deploy:
+      replicas: 3
     working_dir: /app
     volumes:
-      - ./api:/app # 🔹 monta seu código local dentro do container
+      - ./api:/app
     environment:
       DB_HOST: db
       DB_USER: user
@@ -30,8 +42,6 @@ services:
       DB_NAME: bank
       DB_PORT: 5432
       NODE_ENV: development
-    ports:
-      - "3000:3000" # 🔹 acessível em http://localhost:3000
     depends_on:
       db:
         condition: service_healthy

@@ -51,12 +51,31 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // -- ROTAS DE AUTENTICACAO
 
+
+// HEALTH CHECK usado por HAProxy
+app.get('/health', async (req, res) => {
+  try {
+    // Tenta pegar uma conexão do pool e liberar imediatamente
+    const client = await pool.connect();
+    client.release();
+
+    // Se chegou aqui, conexão com o DB OK
+    res.status(200).json({ status: 'ok', db: 'connected' });
+  } catch (err) {
+    // Falha na conexão com o DB
+    console.error('Health check DB failed:', err.message);
+    res.status(500).json({ status: 'error', db: 'disconnected' });
+  }
+});
+
+
+
 /**
  * @swagger
  * /login:
  *   post:
  *     summary: Realiza o login do cliente
- *     tags: [Autenticação & Clientes]
+ *     tags: [Autenticação]
  *     requestBody:
  *       required: true
  *       content:

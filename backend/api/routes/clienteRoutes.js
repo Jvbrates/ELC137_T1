@@ -9,7 +9,7 @@ const router = express.Router();
  * /clientes:
  *   post:
  *     summary: Cadastra um novo cliente
- *     tags: [Autenticação & Clientes]
+ *     tags: [Clientes]
  *     requestBody:
  *       required: true
  *       content:
@@ -206,7 +206,7 @@ router.post('/:documento/contas', authenticateToken, async (req, res) => {
  * /clientes:
  *   get:
  *     summary: Lista todos os clientes (Apenas Gerentes)
- *     tags: [Autenticação & Clientes]
+ *     tags: [Clientes]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -240,7 +240,7 @@ router.get('', authenticateToken, async (req, res) => {
  * /clientes/{documento}:
  *   get:
  *     summary: Busca dados de um cliente específico
- *     tags: [Autenticação & Clientes]
+ *     tags: [Clientes]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -281,7 +281,7 @@ router.get('/:documento', authenticateToken, async (req, res) => {
  * /clientes/{documento}:
  *   put:
  *     summary: Atualiza os dados de um cliente
- *     tags: [Autenticação & Clientes]
+ *     tags: [Clientes]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -411,7 +411,7 @@ router.get('/:documento/contas', authenticateToken, async (req, res) => {
  * /clientes/{documento}/desativar:
  *   patch:
  *     summary: Desativa um cliente (Soft Delete)
- *     tags: [Autenticação & Clientes]
+ *     tags: [Clientes]
  *     security:
  *       - bearerAuth: []
  *     parameters:

@@ -1,6 +1,6 @@
 import express from 'express';
 import {authenticateToken, normalizeDocument} from '../helpers.js';
-import pool from '../dbConnection.js';
+import { poolWrite, poolRead } from'../dbConnection.js';
 const router = express.Router();
 
 /**
@@ -27,7 +27,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
   try {
     const cartaoQuery = 'SELECT ca.id, co.cliente_documento FROM cartao ca JOIN conta co ON ca.conta_id = co.id WHERE ca.id = $1';
-    const cartaoResult = await pool.query(cartaoQuery, [id]);
+    const cartaoResult = await poolRead.query(cartaoQuery, [id]);
 
     if (cartaoResult.rowCount === 0) {
       return res.status(404).json({ error: 'Cartão não encontrado.' });
@@ -37,7 +37,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Acesso não autorizado para excluir este cartão.' });
     }
 
-    await pool.query('DELETE FROM cartao WHERE id = $1', [id]);
+    await poolWrite.query('DELETE FROM cartao WHERE id = $1', [id]);
     res.status(200).json({ message: 'Cartão excluído com sucesso.' });
 
   } catch (error) {

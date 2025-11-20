@@ -1,3 +1,12 @@
+-- Criar DB se não existir (usando psql, fora de funções)
+SELECT 'CREATE DATABASE bank'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'bank')
+\gexec
+
+-- Conectar no DB
+\connect bank
+
+
 -- COMANDOS PARA APAGAR A ESTRUTURA ANTIGA
 DROP TABLE IF EXISTS transacao;
 DROP TABLE IF EXISTS cartao;

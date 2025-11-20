@@ -1,0 +1,154 @@
+services:
+  etcd0: &etcd-base
+    image: quay.io/coreos/etcd:v3.5.18
+    entrypoint: /usr/local/bin/etcd
+    networks:
+      - patroni
+    restart: unless-stopped
+    command:
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --initial-advertise-peer-urls=http://etcd0:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --advertise-client-urls=http://etcd0:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-cluster=etcd0=http://etcd0:2380,etcd1=http://etcd1:2380,etcd2=http://etcd2:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=my_secret_token
+      - --enable-v2=true
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512m
+
+  etcd1:
+    <<: *etcd-base
+    command:
+      - --name=etcd1
+      - --data-dir=/etcd-data
+      - --initial-advertise-peer-urls=http://etcd1:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --advertise-client-urls=http://etcd1:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-cluster=etcd0=http://etcd0:2380,etcd1=http://etcd1:2380,etcd2=http://etcd2:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=my_secret_token
+      - --enable-v2=true
+
+  etcd2:
+    <<: *etcd-base
+    command:
+      - --name=etcd2
+      - --data-dir=/etcd-data
+      - --initial-advertise-peer-urls=http://etcd2:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --advertise-client-urls=http://etcd2:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-cluster=etcd0=http://etcd0:2380,etcd1=http://etcd1:2380,etcd2=http://etcd2:2380
+      - --initial-cluster-state=new
+      - --initial-cluster-token=my_secret_token
+      - --enable-v2=true
+
+  patroni0: &patroni-base
+    image: ghcr.io/batonogov/patroni-docker:v4.0.4-pg17.3
+    entrypoint: [/bin/sh, /entrypoint.sh]
+    restart: unless-stopped
+    volumes:
+      - ./patroni.yml:/patroni.yml:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      #- ./patroni-data0:/var/lib/postgresql/patroni/main
+      - ./init.sh:/etc/post-init.sh
+      - ./init.sql:/etc/post-init.sql
+
+    environment:
+      PATRONI_API_CONNECT_PORT: 8008
+      REPLICATION_NAME: replicator
+      REPLICATION_PASS: replpass
+      SU_NAME: postgres
+      SU_PASS: supass
+      POSTGRES_APP_ROLE_PASS: appass
+    networks:
+      - patroni
+    depends_on:
+      - etcd0
+      - etcd1
+      - etcd2
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512m
+
+  patroni1:
+    <<: *patroni-base
+    volumes:
+      - ./patroni.yml:/patroni.yml:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      #- ./patroni-data1:/var/lib/postgresql/patroni/main
+      - ./init.sh:/etc/post-init.sh
+      - ./init.sql:/etc/post-init.sql
+
+  patroni2:
+    <<: *patroni-base
+    volumes:
+      - ./patroni.yml:/patroni.yml:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      #- ./patroni-data2:/var/lib/postgresql/patroni/main
+      - ./init.sh:/etc/post-init.sh
+      - ./init.sql:/etc/post-init.sql
+      
+  haproxy_db:
+    image: haproxy:3.1.3-alpine
+    volumes:
+      - ./haproxy_db.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - 5432:5432
+      - 5433:5433
+      - 8080:8080
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0
+    restart: unless-stopped
+    networks:
+      - patroni
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64m
+  api:
+    image: node:20-alpine
+    deploy:
+      replicas: 3
+    working_dir: /app
+    volumes:
+      - ./api:/app
+    environment:
+      DB_HOST: haproxy_db
+      DB_USER: postgres
+      DB_PASSWORD: supass
+      DB_NAME: bank
+      DB_PORT_WRITE: 5432
+      DB_PORT_READ: 5433
+      NODE_ENV: development
+    command: sh -c "npm install && npm start"
+    networks:
+      - patroni
+
+  haproxy_api:
+    image: haproxy:2.9
+    container_name: haproxy_api
+    ports:
+      - "3000:3000"
+      - "8081:8080"
+    depends_on:
+      - api
+    volumes:
+      - ./haproxy_api.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - patroni
+
+
+networks:
+  patroni:
+    driver: bridge

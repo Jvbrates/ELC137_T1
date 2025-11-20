@@ -1,6 +1,6 @@
 import express from 'express';
 import {authenticateToken, normalizeDocument} from '../helpers.js';
-import pool from '../dbConnection.js';
+import { poolWrite, poolRead } from'../dbConnection.js';
 const router = express.Router();
 
 
@@ -49,7 +49,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
   try {
     const query = 'UPDATE conta SET status = $1 WHERE id = $2 RETURNING id, status;';
-    const result = await pool.query(query, [status, id]);
+    const result = await poolWrite.query(query, [status, id]);
     
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Conta não encontrada.' });
@@ -85,7 +85,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
   try {
     const contaQuery = 'SELECT cliente_documento, saldo FROM conta WHERE id = $1';
-    const contaResult = await pool.query(contaQuery, [id]);
+    const contaResult = await poolRead.query(contaQuery, [id]);
 
     if (contaResult.rowCount === 0) {
       return res.status(404).json({ error: 'Conta não encontrada.' });
@@ -100,7 +100,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Não é possível excluir conta com saldo diferente de zero.' });
     }
 
-    await pool.query('DELETE FROM conta WHERE id = $1', [id]);
+    await poolWrite.query('DELETE FROM conta WHERE id = $1', [id]);
     res.status(200).json({ message: 'Conta excluída com sucesso.' });
 
   } catch (error) {
@@ -135,7 +135,7 @@ router.get('/:contaId/cartoes', authenticateToken, async (req, res) => {
   const { user } = req;
 
   try {
-    const ownerCheck = await pool.query('SELECT cliente_documento FROM conta WHERE id = $1', [contaId]);
+    const ownerCheck = await poolRead.query('SELECT cliente_documento FROM conta WHERE id = $1', [contaId]);
     if (ownerCheck.rowCount === 0) {
       return res.status(404).json({ error: 'Conta não encontrada.' });
     }
@@ -144,7 +144,7 @@ router.get('/:contaId/cartoes', authenticateToken, async (req, res) => {
     }
 
     const query = 'SELECT id, nome_titular, data_validade, tipo, status FROM cartao WHERE conta_id = $1';
-    const result = await pool.query(query, [contaId]);
+    const result = await poolRead.query(query, [contaId]);
     res.json(result.rows);
   } catch (error) {
     console.error('Erro ao listar cartões:', error);
@@ -176,7 +176,7 @@ router.post('/:contaId/cartoes', authenticateToken, async (req, res) => {
 
   try {
     const contaQuery = 'SELECT c.cliente_documento, cl.primeiro_nome, cl.sobrenome_razao_social FROM conta c JOIN cliente cl ON c.cliente_documento = cl.documento WHERE c.id = $1';
-    const contaResult = await pool.query(contaQuery, [contaId]);
+    const contaResult = await poolRead.query(contaQuery, [contaId]);
 
     if (contaResult.rowCount === 0) {
       return res.status(404).json({ error: 'Conta não encontrada.' });
@@ -192,7 +192,7 @@ router.post('/:contaId/cartoes', authenticateToken, async (req, res) => {
             VALUES ($1, md5(random()::text || clock_timestamp()::text), md5(random()::text), $2, current_date + interval '5 year', 'VIRTUAL')
             RETURNING id, tipo, data_emissao;
         `;
-    const cartaoResult = await pool.query(cartaoQuery, [contaId, nomeTitular]);
+    const cartaoResult = await poolWrite.query(cartaoQuery, [contaId, nomeTitular]);
 
     res.status(201).json(cartaoResult.rows[0]);
   } catch (error) {
@@ -245,7 +245,7 @@ router.get('/:contaId/transacoes', authenticateToken, async (req, res) => {
 
   try {
     // --- Verifica se a conta existe e pertence ao usuário ---
-    const ownerCheck = await pool.query(
+    const ownerCheck = await poolRead.query(
       'SELECT cliente_documento FROM conta WHERE id = $1',
       [contaId]
     );
@@ -273,7 +273,7 @@ router.get('/:contaId/transacoes', authenticateToken, async (req, res) => {
       ORDER BY data_hora DESC
       LIMIT $2 OFFSET $3;
     `;
-    const result = await pool.query(query, [contaId, limit, offset]);
+    const result = await poolRead.query(query, [contaId, limit, offset]);
 
     // --- Mapeia resultado para adicionar "de", "para" e "balanco" ---
     const transacoes = result.rows.map(t => ({

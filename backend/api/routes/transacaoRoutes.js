@@ -1,6 +1,6 @@
 import express from 'express';
 import {authenticateToken, normalizeDocument} from '../helpers.js';
-import pool from '../dbConnection.js';
+import { poolWrite, poolRead } from'../dbConnection.js';
 const router = express.Router();
 
 
@@ -39,7 +39,7 @@ const router = express.Router();
 router.post('/transferencia', authenticateToken, async (req, res) => {
   const { conta_origem_id, numero_conta_destino, valor } = req.body;
   const { user } = req;
-  const client = await pool.connect();
+  const client = await poolWrite.connect();
 
   try {
     await client.query('BEGIN');
@@ -120,7 +120,7 @@ router.post('/transferencia', authenticateToken, async (req, res) => {
 router.post('/saque', authenticateToken, async (req, res) => {
   const { conta_origem_id, valor } = req.body;
   const { user } = req;
-  const client = await pool.connect();
+  const client = await poolWrite.connect();
 
   try {
     if (!conta_origem_id || !valor || valor <= 0) {
@@ -203,7 +203,7 @@ router.post('/saque', authenticateToken, async (req, res) => {
 router.post('/deposito', authenticateToken, async (req, res) => {
   const { conta_destino_id, valor } = req.body;
   const { user } = req;
-  const client = await pool.connect();
+  const client = await poolWrite.connect();
 
   try {
     if (!conta_destino_id || !valor || valor <= 0) {

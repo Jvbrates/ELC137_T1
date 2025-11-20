@@ -1,7 +1,7 @@
 
 import express from 'express';
 import {authenticateToken, normalizeDocument} from '../helpers.js';
-import pool from '../dbConnection.js';
+import { poolWrite, poolRead } from'../dbConnection.js';
 const router = express.Router();
 
 /**
@@ -37,7 +37,7 @@ router.post('', async (req, res) => {
   }
 
   const normalizedDoc = normalizeDocument(documento);
-  const client = await pool.connect();
+  const client = await poolWrite.connect();
 
   try {
     await client.query('BEGIN');
@@ -136,7 +136,7 @@ router.post('', async (req, res) => {
 router.post('/:documento/contas', authenticateToken, async (req, res) => {
   const { documento } = req.params;
   const normalizedDoc = normalizeDocument(documento);
-  const client = await pool.connect();
+  const client = await poolWrite.connect();
 
   try {
     await client.query('BEGIN');
@@ -227,7 +227,7 @@ router.get('', authenticateToken, async (req, res) => {
             WHERE deleted_at IS NULL
             ORDER BY data_criacao;
         `;
-    const result = await pool.query(query);
+    const result = await poolRead.query(query);
     res.json(result.rows);
   } catch (error) {
     console.error('Erro ao listar clientes:', error);
@@ -264,7 +264,7 @@ router.get('/:documento', authenticateToken, async (req, res) => {
 
   try {
     const query = 'SELECT documento, primeiro_nome, sobrenome_razao_social, is_pessoa_juridica, role, data_criacao FROM cliente WHERE documento = $1 AND deleted_at IS NULL';
-    const result = await pool.query(query, [normalizedDoc]);
+    const result = await poolRead.query(query, [normalizedDoc]);
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Cliente não encontrado.' });
@@ -357,7 +357,7 @@ router.put('/:documento', authenticateToken, async (req, res) => {
     `;
 
     try {
-        const result = await pool.query(updateQuery, values);
+        const result = await poolWrite.query(updateQuery, values);
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Cliente não encontrado ou está inativo.' });
         }
@@ -398,7 +398,7 @@ router.get('/:documento/contas', authenticateToken, async (req, res) => {
 
   try {
     const query = 'SELECT id, numero_conta, agencia, saldo, status FROM conta WHERE cliente_documento = $1';
-    const result = await pool.query(query, [normalizedDoc]);
+    const result = await poolRead.query(query, [normalizedDoc]);
     res.json(result.rows);
   } catch (error) {
     console.error('Erro ao listar contas do cliente:', error);
@@ -435,7 +435,7 @@ router.patch('/:documento/desativar', authenticateToken, async (req, res) => {
 
   try {
     const query = 'UPDATE cliente SET deleted_at = NOW() WHERE documento = $1 AND deleted_at IS NULL RETURNING documento;';
-    const result = await pool.query(query, [normalizedDoc]);
+    const result = await poolWrite.query(query, [normalizedDoc]);
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Cliente não encontrado ou já desativado.' });

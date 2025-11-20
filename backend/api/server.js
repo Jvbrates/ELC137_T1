@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import  pool  from './dbConnection.js';
+import { poolWrite, poolRead } from'./dbConnection.js';
 import { authenticateToken } from './helpers.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -56,7 +56,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/health', async (req, res) => {
   try {
     // Tenta pegar uma conexão do pool e liberar imediatamente
-    const client = await pool.connect();
+    const client = await poolWrite.connect();
     client.release();
 
     // Se chegou aqui, conexão com o DB OK
@@ -96,8 +96,8 @@ app.post('/login', async (req, res) => {
   const normalizedDoc = normalizeDocument(documento);
   try {
     const query = "SELECT documento, role FROM cliente WHERE documento = $1 AND senha_hash = crypt($2, senha_hash) AND deleted_at IS NULL;";
-    const result = await pool.query(query, [normalizedDoc, senha]);
-
+    const result = await poolRead.query(query, [normalizedDoc, senha]);
+    console.log('Login query result rowCount:', result.rowCount);
     if (result.rowCount === 0) {
       return res.status(401).json({ error: 'Credenciais inválidas ou cliente desativado.' });
     }
